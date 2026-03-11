@@ -1,22 +1,75 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
+
+const API_BASE = "http://localhost:5000/api";
 
 const Dashboard = () => {
   const [count, setCount] = useState(0);
   const [search, setSearch] = useState("");
-  const [items] = useState([
-    { id: 1, name: "Alice", role: "Admin", status: "Active", avatar: "A" },
-    { id: 2, name: "Bob", role: "User", status: "Active", avatar: "B" },
-    { id: 3, name: "Charlie", role: "User", status: "Inactive", avatar: "C" },
-    { id: 4, name: "Diana", role: "Manager", status: "Active", avatar: "D" },
-    { id: 5, name: "Eve", role: "Admin", status: "Active", avatar: "E" },
-    { id: 6, name: "Frank", role: "User", status: "Pending", avatar: "F" },
-  ]);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.role.toLowerCase().includes(search.toLowerCase())
-  );
+  // Fetch users from backend
+  useEffect(() => {
+    fetchUsers();
+    fetchCounter();
+  }, []);
+
+  // Fetch users when search changes
+  useEffect(() => {
+    fetchUsers();
+  }, [search]);
+
+  const fetchUsers = async () => {
+    try {
+      const url = search 
+        ? `${API_BASE}/users?search=${encodeURIComponent(search)}`
+        : `${API_BASE}/users`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch users");
+      const data = await response.json();
+      setItems(data);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  const fetchCounter = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/counter`);
+      const data = await response.json();
+      setCount(data.counter);
+    } catch (err) {
+      console.error("Failed to fetch counter:", err);
+    }
+  };
+
+  const handleIncrement = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/counter/increment`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      setCount(data.counter);
+    } catch (err) {
+      console.error("Failed to increment:", err);
+    }
+  };
+
+  const handleReset = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/counter/reset`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      setCount(data.counter);
+    } catch (err) {
+      console.error("Failed to reset:", err);
+    }
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -35,6 +88,28 @@ const Dashboard = () => {
     };
     return colors[role] || "#6b7280";
   };
+
+  const activeUsers = items.filter((i) => i.status === "Active").length;
+
+  if (loading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.spinner}>⏳</div>
+        <p style={styles.loadingText}>Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.errorContainer}>
+        <p style={styles.errorText}>⚠️ Error: {error}</p>
+        <button style={styles.retryButton} onClick={fetchUsers}>
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -55,9 +130,7 @@ const Dashboard = () => {
         <div style={styles.statCard}>
           <div style={styles.statIcon}>✅</div>
           <div style={styles.statContent}>
-            <span style={styles.statValue}>
-              {items.filter((i) => i.status === "Active").length}
-            </span>
+            <span style={styles.statValue}>{activeUsers}</span>
             <span style={styles.statLabel}>Active</span>
           </div>
           <div style={{ ...styles.statTrend, color: "#10b981" }}>+8%</div>
@@ -81,13 +154,10 @@ const Dashboard = () => {
             <span style={styles.counterValue}>{count}</span>
           </div>
           <div style={styles.buttonGroup}>
-            <button
-              style={styles.incrementButton}
-              onClick={() => setCount(count + 1)}
-            >
+            <button style={styles.incrementButton} onClick={handleIncrement}>
               ➕ Increment
             </button>
-            <button style={styles.resetButton} onClick={() => setCount(0)}>
+            <button style={styles.resetButton} onClick={handleReset}>
               🔄 Reset
             </button>
           </div>
@@ -107,7 +177,7 @@ const Dashboard = () => {
           </div>
           {search && (
             <p style={styles.searchResult}>
-              Found {filteredItems.length} result{filteredItems.length !== 1 ? "s" : ""}
+              Found {items.length} result{items.length !== 1 ? "s" : ""}
             </p>
           )}
         </div>
@@ -127,8 +197,8 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.length > 0 ? (
-                filteredItems.map((item, index) => (
+              {items.length > 0 ? (
+                items.map((item, index) => (
                   <tr
                     key={item.id}
                     style={{
@@ -192,6 +262,50 @@ const styles = {
     padding: "32px",
     maxWidth: 1200,
     margin: "0 auto",
+  },
+  loadingContainer: {
+    padding: "32px",
+    maxWidth: 1200,
+    margin: "0 auto",
+    textAlign: "center",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  spinner: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: "#64748b",
+  },
+  errorContainer: {
+    padding: "32px",
+    maxWidth: 1200,
+    margin: "0 auto",
+    textAlign: "center",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 18,
+    color: "#ef4444",
+  },
+  retryButton: {
+    padding: "12px 24px",
+    background: "#667eea",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontSize: 14,
   },
   header: {
     marginBottom: 32,
