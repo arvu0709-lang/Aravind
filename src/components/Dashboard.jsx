@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const API_BASE = "http://localhost:5000/api";
 
@@ -9,6 +9,7 @@ const Dashboard = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasLoaded = useRef(false);
 
   // Fetch users from backend
   useEffect(() => {
@@ -18,7 +19,9 @@ const Dashboard = () => {
 
   // Fetch users when search changes
   useEffect(() => {
-    fetchUsers();
+    if (hasLoaded.current) {
+      fetchUsers();
+    }
   }, [search]);
 
   const fetchUsers = async () => {
@@ -29,6 +32,14 @@ const Dashboard = () => {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
+      
+      if (!hasLoaded.current) {
+        console.log("=== BACKEND DATA - USERS ===");
+        console.log(JSON.stringify(data, null, 2));
+        console.log("Total users:", data.length);
+        hasLoaded.current = true;
+      }
+      
       setItems(data);
       setLoading(false);
     } catch (err) {
@@ -41,6 +52,12 @@ const Dashboard = () => {
     try {
       const response = await fetch(`${API_BASE}/counter`);
       const data = await response.json();
+      
+      if (!hasLoaded.current) {
+        console.log("=== BACKEND DATA - COUNTER ===");
+        console.log(JSON.stringify(data, null, 2));
+      }
+      
       setCount(data.counter);
     } catch (err) {
       console.error("Failed to fetch counter:", err);
